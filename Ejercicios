@@ -1,0 +1,618 @@
+USE db_inmobiliaria_final;
+
+#1.	¿Cuáles son todas las propiedades de un propietario específico?
+SELECT  propietario.codigo_propietario, propietario.propiedades_registradas,propiedad.propietario, propiedad.codigo_propiedad
+FROM propiedad
+INNER JOIN propietario ON propietario.id_propiedad = propietario.id_propiedad;
+
+#2.	¿Qué propiedades tienen precio superior a 300,000?
+SELECT propiedad.codigo_propiedad, propiedad.precio, propiedad.direccion_completa, propiedad.propietario
+FROM propiedad
+WHERE propiedad.precio > 300000;
+
+#3.	¿Cuáles son las propiedades de tipo Vivienda, subtipo Departamento en la zona Centro?
+SELECT propiedad.codigo_propiedad,propiedad.direccion_completa, propiedad.id_tipo_propiedad, tipo_propiedad.vivienda, tipo_propiedad.codigo_tipo_propiedad
+FROM propiedad
+LEFT JOIN tipo_propiedad ON propiedad.codigo_propiedad = tipo_propiedad.codigo_tipo_propiedad
+
+#4.	¿Qué propiedades están disponibles para venta o alquiler?
+SELECT propiedad.codigo_propiedad, propiedad.codigo_unico, disponibilidad_propiedad.codigo_disponibilidad_propiedad, disponibilidad_propiedad.venta, disponibilidad_propiedad.alquiler
+FROM propiedad
+RIGHT JOIN disponibilidad_propiedad ON propiedad.codigo_propiedad = disponibilidad_propiedad.codigo_disponibilidad_propiedad
+
+#5.	¿Cuáles son las visitas a propiedades realizadas en marzo de 2024?
+SELECT visita_propiedades.codigo_visita_propiedad, visita_propiedades.fecha_visita
+FROM visita_propiedades
+WHERE MONTH (fecha_visita) = 3 AND YEAR (fecha_visita) = 2024
+
+#6.	¿Qué propiedades tienen piscina y balcón o terraza?
+SELECT propiedad.codigo_propiedad, propiedad.caracteristicas_destacadas
+FROM propiedad
+WHERE propiedad.caracteristicas_destacadas  LIKE 'Piscina' OR propiedad.caracteristicas_destacadas  LIKE 'Balcon' OR propiedad.caracteristicas_destacadas  LIKE 'Terraza';
+
+#7.	¿Cuáles son las propiedades con descripciones que contienen las palabras "luminoso" o "renovado"?
+SELECT operaciones_venta.codigo_operaciones_venta,  operaciones_venta.propiedad,operaciones_venta.condiciones_especiales
+FROM operaciones_venta
+WHERE operaciones_venta.condiciones_especiales LIKE 'Remodelado'  OR operaciones_venta.condiciones_especiales LIKE 'Remodelada';
+
+#8.	¿Qué contratos de alquiler no tienen fecha de finalización?
+SELECT contratos_alquiler.codigo_contrato, contratos_alquiler.fecha_inicio, contratos_alquiler.fecha_fin
+FROM contratos_alquiler
+WHERE contratos_alquiler.fecha_fin IS NULL;
+
+#9.	¿Cuáles son las propiedades ordenadas por tipo y precio?
+SELECT propiedad.codigo_propiedad, propiedad.precio, propiedad.id_tipo_propiedad
+FROM propiedad
+    
+#10.	¿Cuál es el tiempo promedio de venta (en días) por zona, tipo y subtipo de propiedad?
+
+
+
+#------------------------------------------------------------------------------------------------------#
+
+#Procedimientos Almacenados:
+#1.	RegistrarPropiedad: Registra una nueva propiedad con sus características.
+DELIMITER $$
+
+CREATE PROCEDURE RegistrarPropiedad(
+		IN p_codigo_propiedad VARCHAR(20),
+   	IN p_precio INT,
+   	IN p_codigo_unico INT,
+   	IN p_direccion_completa VARCHAR(100),
+   	IN p_superficie_terreno INT,
+   	IN p_superficie_construida INT,
+   	IN p_anio_construccion DATE,
+   	IN p_caracteristicas_destacadas VARCHAR(50),
+   	IN p_estado_conservacion VARCHAR(30),
+   	IN p_situacion_legal VARCHAR(30),
+   	IN p_precio_solicitado INT,
+   	IN p_comision_aplicable INT,
+   	IN p_propietario VARCHAR(50)
+)
+BEGIN 
+	INSERT INTO propiedad (
+		codigo_propiedad, precio, codigo_unico, direccion_completa,
+   	coordenadas_geograficas, superficie_terreno, superficie_construida,
+      anio_construccion, caracteristicas_destacadas, estado_conservacion,
+      situacion_legal, precio_solicitado, comision_aplicable, propietario
+	)
+	VALUES (p_codigo_propiedad, p_precio, p_codigo_unico, p_direccion_completa, 
+		p_superficie_terrenop_superficie_construida,p_anio_construccion,p_caracteristicas_destacadas,
+		p_estado_conservacion,p_situacion_legal,p_precio_solicitado,p_comision_aplicable,p_propietario
+	);
+END$$
+
+DELIMITER;
+
+CALL RegistrarPropiedad('PROP071', 250000, 10071, 'Calle 50 #25', 120, 95, '2022-05-10', 'Piscina y balcón', 'Excelente', 'Legal', 255000, 3, 'Carlos Ruiz');
+
+#2.	AgendarVisitaPropiedad: Programa una visita a una propiedad con cliente y agente.
+
+DELIMITER $$
+
+CREATE PROCEDURE SP_agendarvisitapropiedad(
+    IN p_codigo_visita VARCHAR(20),
+    IN p_codigo_propiedad INT,
+    IN p_fecha DATE,
+    IN p_hora TIME,
+    IN p_nombre_cliente VARCHAR(100),
+    IN p_nombre_agente VARCHAR(100),
+    IN p_duracion INT,
+    IN p_interes VARCHAR(50),
+    IN p_observaciones VARCHAR(255)
+)
+BEGIN
+    INSERT INTO visita_propiedades (
+        codigo_visita_propiedad, codigo_propiedad, fecha_visita, hora_visita,
+        nombre_cliente, nombre_agente, duracion_minutos, interes_mostrado,
+        observaciones_cliente
+    )
+    VALUES (
+        p_codigo_visita, p_codigo_propiedad, p_fecha, p_hora,
+        p_nombre_cliente, p_nombre_agente, p_duracion, p_interes, p_observaciones
+    );
+END$$
+
+DELIMITER ;
+
+CALL SP_agendarvisitapropiedad('VIS071', 171, '2024-03-15', '14:00:00', 'Laura Gómez', 'Andrés Ocampo', 45, 'Alto', 'Cliente muy interesado');
+
+#3.	GestionarOperacionVenta: Gestiona una operación de venta de propiedad.
+
+DELIMITER $$
+
+CREATE PROCEDURE SP_gestionaroperacionventa(
+    IN p_codigo_operacion VARCHAR(20),
+    IN p_numero_ref INT,
+    IN p_fecha DATE,
+    IN p_propiedad VARCHAR(28),
+    IN p_vendedor VARCHAR(30),
+    IN p_comprador VARCHAR(30),
+    IN p_precio FLOAT,
+    IN p_forma_pago VARCHAR(30),
+    IN p_condiciones VARCHAR(50),
+    IN p_estado VARCHAR(20)
+)
+BEGIN
+    INSERT INTO operaciones_venta (
+        codigo_operaciones_venta, numero_referencia, fecha, propiedad,
+        vendedor, comprador, precio_final_acordado, forma_pago,
+        condiciones_especiales, estado_actual, fecha_estimada_escritura,
+        comisiones_generadas, reserva_recibida, documentacion_asociada
+    )
+    VALUES (
+        p_codigo_operacion, p_numero_ref, p_fecha, p_propiedad,
+        p_vendedor, p_comprador, p_precio, p_forma_pago,
+        p_condiciones, p_estado, DATE_ADD(p_fecha, INTERVAL 30 DAY),
+        'Pendiente', 'Sí', 'DOC001'
+    );
+END$$
+
+DELIMITER ;
+
+CALL SP_gestionaroperacionventa('VENT071', 5071, '2025-01-20', 'Propiedad 145', 'María López', 'Ana Ríos', 380000, 'Transferencia', 'Pago en 2 cuotas', 'Finalizado');
+
+#4.	CrearContratoAlquiler: Crea un contrato de alquiler para una propiedad.
+
+DELIMITER $$
+
+CREATE PROCEDURE SP_crearcontratoalquiler(
+    IN p_codigo_contrato VARCHAR(20),
+    IN p_codigo_propiedad INT,
+    IN p_propiedad VARCHAR(100),
+    IN p_propietario VARCHAR(100),
+    IN p_inquilino VARCHAR(100),
+    IN p_duracion INT,
+    IN p_fecha_inicio DATE,
+    IN p_renta FLOAT
+)
+BEGIN
+    INSERT INTO contratos_alquiler (
+        codigo_contrato, numero_contrato, codigo_propiedad, propiedad,
+        nombre_propietario, nombre_inquilino, duracion_meses,
+        fecha_inicio, fecha_fin, renta_mensual_usd, dia_pago,
+        forma_pago, estado_contrato
+    )
+    VALUES (
+        p_codigo_contrato, FLOOR(RAND()*10000), p_codigo_propiedad, p_propiedad,
+        p_propietario, p_inquilino, p_duracion, p_fecha_inicio,
+        DATE_ADD(p_fecha_inicio, INTERVAL p_duracion MONTH),
+        p_renta, '5 de cada mes', 'Transferencia', 'Activo'
+    );
+END$$
+
+DELIMITER ;
+
+CALL SP_crearcontratoalquiler('CONT071', 171, 'Apto 201 - Torre 5', 'Luis Torres', 'Camila Pérez', 12, '2025-02-01', 850);
+
+#5.	AsignarPropiedadAgente: Asigna propiedades a agentes inmobiliarios.
+
+DELIMITER $$
+
+CREATE PROCEDURE SP_asignarpropiedadagente(
+    IN p_codigo_agente VARCHAR(20),
+    IN p_codigo_propiedad VARCHAR(20)
+)
+BEGIN
+    UPDATE agentes_inmobiliarios
+    SET id_propiedad = p_codigo_propiedad
+    WHERE codigo_agentes_inmobiliarios = p_codigo_agente;
+END$$
+
+DELIMITER ;
+
+CALL SP_asignarpropiedadagente('AGT015', 'PROP045');
+
+#------------------------------------------------------------------------------------------------------#
+
+#Triggers:
+#1.	TR_ActualizarDisponibilidadPropiedad: Actualiza el estado de disponibilidad de una propiedad.
+
+DELIMITER $$
+
+CREATE TRIGGER TR_ActualizarDisponibilidadPropiedad
+AFTER INSERT ON operaciones_venta
+FOR EACH ROW
+BEGIN
+    -- Cuando una propiedad se vende, se marca como "No disponible"
+    UPDATE propiedad
+    SET disponibilidad = 'No disponible'
+    WHERE codigo_propiedad = NEW.propiedad;
+END//
+
+DELIMITER ;
+
+#2.	TR_CalcularComisionesAgentes: Calcula comisiones para agentes tras operaciones.
+
+DELIMITER //
+
+CREATE TRIGGER TR_CalcularComisionesAgentes
+AFTER INSERT ON operaciones_venta
+FOR EACH ROW
+BEGIN
+    DECLARE v_agente VARCHAR(100);
+    DECLARE v_comision FLOAT DEFAULT 0;
+
+    -- Buscar el agente asociado a la propiedad vendida
+    SELECT nombre_agente INTO v_agente
+    FROM agentes_inmobiliarios
+    WHERE id_propiedad = NEW.propiedad
+    LIMIT 1;
+
+    -- Calcular comisión (por ejemplo, 3% del valor de venta)
+    SET v_comision = NEW.precio_final_acordado * 0.03;
+
+    -- Actualizar total de comisiones generadas del agente
+    UPDATE agentes_inmobiliarios
+    SET total_comisiones = IFNULL(total_comisiones, 0) + v_comision
+    WHERE nombre_agente = v_agente;
+END//
+
+DELIMITER ;
+
+#3.	TR_ActualizarEstadisticasVentas: Actualiza estadísticas de ventas por zona y agente
+
+DELIMITER //
+
+CREATE TRIGGER TR_ActualizarEstadisticasVentas
+AFTER INSERT ON operaciones_venta
+FOR EACH ROW
+BEGIN
+    DECLARE v_zona VARCHAR(50);
+    DECLARE v_agente VARCHAR(50);
+
+    -- Obtener zona y agente asociados
+    SELECT direccion_completa INTO v_zona
+    FROM propiedad WHERE codigo_propiedad = NEW.propiedad LIMIT 1;
+
+    SELECT nombre_agente INTO v_agente
+    FROM agentes_inmobiliarios WHERE id_propiedad = NEW.propiedad LIMIT 1;
+
+    -- Insertar o actualizar tabla de estadísticas
+    INSERT INTO estadisticas_ventas (zona, agente, total_ventas)
+    VALUES (v_zona, v_agente, 1)
+    ON DUPLICATE KEY UPDATE total_ventas = total_ventas + 1;
+END//
+
+DELIMITER ;
+
+#4.	TR_RegistrarHistorialPrecios: Registra el historial de cambios de precios de una propiedad
+
+DELIMITER //
+
+CREATE TRIGGER TR_RegistrarHistorialPrecios
+BEFORE UPDATE ON propiedad
+FOR EACH ROW
+BEGIN
+    -- Si el precio cambia, registrar en historial
+    IF NEW.precio <> OLD.precio THEN
+        INSERT INTO historial_precios (
+            codigo_propiedad,
+            precio_anterior,
+            nuevo_precio,
+            fecha_cambio
+        ) VALUES (
+            OLD.codigo_propiedad,
+            OLD.precio,
+            NEW.precio,
+            NOW()
+        );
+    END IF;
+END//
+
+DELIMITER ;
+
+#5   TR_VerificarCompatibilidadClientePropiedad: Verifica si una propiedad coincide con criterios de clientes.
+
+DELIMITER //
+
+CREATE TRIGGER TR_VerificarCompatibilidadClientePropiedad
+BEFORE INSERT ON visita_propiedades
+FOR EACH ROW
+BEGIN
+    DECLARE v_precio INT;
+    DECLARE v_area INT;
+    DECLARE v_msg VARCHAR(255);
+
+    -- Supongamos que los clientes prefieren propiedades entre $100,000 y $600,000
+    SELECT precio, superficie_construida INTO v_precio, v_area
+    FROM propiedad WHERE codigo_propiedad = NEW.codigo_propiedad LIMIT 1;
+
+    IF v_precio NOT BETWEEN 100000 AND 600000 THEN
+        SET v_msg = CONCAT('⚠️ La propiedad ', NEW.codigo_propiedad, ' no cumple el rango de precios del cliente.');
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
+    END IF;
+
+END//
+
+DELIMITER ;
+
+#------------------------------------------------------------------------------------------------------#
+
+#Vistas
+#1.	V_PropiedadesDisponibles: Muestra propiedades disponibles con sus características.
+
+CREATE OR REPLACE VIEW VW_PropiedadesDisponibles AS
+SELECT 
+    p.codigo_propiedad,
+    p.direccion_completa,
+    p.precio,
+    p.superficie_construida,
+    p.superficie_terreno,
+    p.caracteristicas_destacadas,
+    p.estado_conservacion,
+    tp.vivienda AS tipo_vivienda,
+    tp.comercial AS tipo_comercial,
+    tp.terreno AS tipo_terreno,
+    tp.industrial AS tipo_industrial
+FROM propiedad p
+INNER JOIN tipo_propiedad tp ON p.id_tipo_propiedad = tp.codigo_tipo_propiedad
+WHERE p.id_disponibilidad = 'D001'  -- Ejemplo: código para “Disponible”
+ORDER BY p.precio ASC;
+
+#2.	V_VisitasProgramadas: Lista de visitas programadas por agente y fecha.
+CREATE OR REPLACE VIEW Vw_VisitasProgramadas AS
+SELECT 
+    v.codigo_visita_propiedades,
+    v.codigo_propiedad,
+    p.direccion_completa,
+    v.fecha_visita,
+    v.hora_visita,
+    v.nombre_agente,
+    v.nombre_cliente,
+    v.comentarios
+FROM visita_propiedades v
+INNER JOIN propiedad p ON v.codigo_propiedad = p.codigo_propiedad
+ORDER BY v.fecha_visita ASC, v.hora_visita ASC;
+
+#3.	V_OperacionesEnCurso: Detalle de operaciones de venta en proceso.
+CREATE OR REPLACE VIEW VW_OperacionesEnCurso AS
+SELECT 
+    o.codigo_operaciones_venta,
+    o.propiedad,
+    p.direccion_completa,
+    o.fecha_inicio,
+    o.vendedor,
+    o.comprador,
+    o.precio_final_acordado,
+    o.estado_operacion
+FROM operaciones_venta o
+INNER JOIN propiedad p ON o.propiedad = p.codigo_propiedad
+WHERE o.estado_operacion IN ('En proceso', 'Pendiente')
+ORDER BY o.fecha_inicio DESC;
+
+#4.	V_RendimientoAgentes: Estadísticas de rendimiento por agente inmobiliario.
+CREATE OR REPLACE VIEW VW_RendimientoAgentes AS
+SELECT 
+    a.nombre_agente,
+    COUNT(o.codigo_operaciones_venta) AS total_ventas,
+    SUM(o.precio_final_acordado) AS total_vendido,
+    SUM(o.precio_final_acordado) * 0.03 AS comision_estimado -- 3% de comisión
+FROM agentes_inmobiliarios a
+LEFT JOIN operaciones_venta o ON a.id_propiedad = o.propiedad
+GROUP BY a.nombre_agente
+ORDER BY total_vendido DESC;
+
+#5.	V_AlquileresVigentes: Contratos de alquiler vigentes con fechas de vencimiento.
+CREATE OR REPLACE VIEW VW_AlquileresVigentes AS
+SELECT 
+    c.codigo_contratos_alquiler,
+    c.codigo_propiedad,
+    p.direccion_completa,
+    c.inquilino,
+    c.fecha_inicio,
+    c.fecha_fin,
+    c.valor_mensual,
+    c.estado_contrato
+FROM contratos_alquiler c
+INNER JOIN propiedad p ON c.codigo_propiedad = p.codigo_propiedad
+WHERE c.fecha_fin > CURDATE()
+ORDER BY c.fecha_fin ASC;
+
+#------------------------------------------------------------------------------------------------------#
+
+#1.	EVT_VerificarVencimientosContratos: Verifica contratos de alquiler próximos a vencer
+CREATE EVENT EVT_VerificarVencimientosContratos
+ON SCHEDULE EVERY 1 DAY
+DO
+BEGIN
+    UPDATE contratos_alquiler
+    SET estado_contrato = 'Por vencer'
+    WHERE fecha_fin BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 15 DAY)
+      AND estado_contrato = 'Activo';
+END;
+
+#2.	EVT_ActualizarIndicadoresMercado: Actualiza indicadores de mercado por zona.
+CREATE EVENT EVT_ActualizarIndicadoresMercado
+ON SCHEDULE EVERY 1 WEEK
+DO
+BEGIN
+    INSERT INTO indicadores_mercado (zona, promedio_precio, total_ventas, fecha_actualizacion)
+    SELECT 
+        d.zona,
+        AVG(p.precio) AS promedio_precio,
+        COUNT(o.codigo_operaciones_venta) AS total_ventas,
+        NOW()
+    FROM propiedad p
+    LEFT JOIN operaciones_venta o ON p.codigo_propiedad = o.propiedad
+    LEFT JOIN distribucion_propiedad d ON p.id_distribucion = d.codigo_distribucion_propiedad
+    GROUP BY d.zona;
+END;
+
+#3.	EVT_GenerarReporteActividad: Genera reportes de actividad por agente y periodo.
+CREATE EVENT EVT_GenerarReporteActividad
+ON SCHEDULE EVERY 1 WEEK
+DO
+BEGIN
+    INSERT INTO reportes_actividad (nombre_agente, total_visitas, total_ventas, fecha_reporte)
+    SELECT 
+        v.nombre_agente,
+        COUNT(DISTINCT v.codigo_visita_propiedades) AS total_visitas,
+        COUNT(DISTINCT o.codigo_operaciones_venta) AS total_ventas,
+        NOW()
+    FROM agentes_inmobiliarios a
+    LEFT JOIN visita_propiedades v ON a.nombre_agente = v.nombre_agente
+    LEFT JOIN operaciones_venta o ON a.id_propiedad = o.propiedad
+    GROUP BY v.nombre_agente;
+END;
+
+#4.	EVT_EnviarNotificacionesClientes: Envía notificaciones a clientes sobre propiedades de interés.
+CREATE EVENT EVT_EnviarNotificacionesClientes
+ON SCHEDULE EVERY 1 DAY
+DO
+BEGIN
+    INSERT INTO notificaciones_clientes (id_cliente, mensaje, fecha_envio)
+    SELECT 
+        c.codigo_clientes_potenciales,
+        CONCAT('Hay nuevas propiedades disponibles en tu zona de interés.'),
+        NOW()
+    FROM clientes_potenciales c
+    WHERE EXISTS (
+        SELECT 1 
+        FROM propiedad p
+        WHERE p.id_disponibilidad = 'D001'  -- disponibles
+          AND p.id_distribucion = c.zona_interes
+    );
+END;
+
+#5.	EVT_ControlarSeguimientoVisitas: Controla el seguimiento posterior a visitas realizadas.
+CREATE EVENT EVT_ControlarSeguimientoVisitas
+ON SCHEDULE EVERY 1 DAY
+DO
+BEGIN
+    UPDATE visita_propiedades
+    SET comentarios = CONCAT(comentarios, ' | Requiere seguimiento')
+    WHERE fecha_visita < DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+      AND comentarios NOT LIKE '%seguimiento%';
+END;
+
+#------------------------------------------------------------------------------------------------------#
+
+#1.	FN_CalcularPrecioSugerido: Calcula el precio sugerido para una propiedad según características.
+DELIMITER $$
+
+CREATE FUNCTION FN_CalcularPrecioSugerido(
+    superficie_construida INT,
+    superficie_terreno INT,
+    anio_construccion YEAR,
+    estado_conservacion VARCHAR(20)
+)
+RETURNS DECIMAL(12,2)
+DETERMINISTIC
+BEGIN
+    DECLARE precio_base DECIMAL(12,2);
+    DECLARE factor_estado DECIMAL(4,2);
+    DECLARE antiguedad INT;
+
+    SET antiguedad = YEAR(CURDATE()) - anio_construccion;
+    SET precio_base = (superficie_construida * 1200) + (superficie_terreno * 800);
+
+    SET factor_estado = CASE
+        WHEN estado_conservacion = 'Excelente' THEN 1.15
+        WHEN estado_conservacion = 'Bueno' THEN 1.00
+        WHEN estado_conservacion = 'Regular' THEN 0.85
+        ELSE 0.70
+    END;
+
+    RETURN ROUND(precio_base * factor_estado * (1 - (antiguedad * 0.01)), 2);
+END$$
+
+DELIMITER ;
+
+SELECT FN_CalcularPrecioSugerido(120, 200, 2018, 'Bueno') AS precio_sugerido;
+
+#2.	FN_ObtenerPropiedadesCompatibles: Identifica propiedades compatibles con requisitos de cliente.
+DELIMITER //
+
+CREATE FUNCTION FN_ObtenerPropiedadesCompatibles(
+    presupuesto_maximo DECIMAL(12,2),
+    zona VARCHAR(50),
+    tipo_propiedad VARCHAR(50)
+)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE total INT;
+
+    SELECT COUNT(*) INTO total
+    FROM propiedad p
+    JOIN tipo_propiedad t ON p.id_tipo_propiedad = t.codigo_tipo_propiedad
+    WHERE p.precio <= presupuesto_maximo
+      AND p.caracteristicas_destacadas LIKE CONCAT('%', zona, '%')
+      AND t.vivienda = tipo_propiedad;
+
+    RETURN total;
+END//
+
+DELIMITER ;
+
+SELECT FN_ObtenerPropiedadesCompatibles(250000, 'Centro', 'Casa') AS propiedades_compatibles;
+
+#3.	FN_CalcularRentabilidadAlquiler: Calcula la rentabilidad anual de un alquiler.
+DELIMITER //
+
+CREATE FUNCTION FN_CalcularRentabilidadAlquiler(
+    renta_mensual DECIMAL(12,2),
+    precio_propiedad DECIMAL(12,2)
+)
+RETURNS DECIMAL(6,2)
+DETERMINISTIC
+BEGIN
+    RETURN ROUND(((renta_mensual * 12) / precio_propiedad) * 100, 2);
+END//
+
+SELECT FN_CalcularRentabilidadAlquiler(1200, 180000) AS rentabilidad_anual;
+
+#4.	FN_EstimarTiempoVenta: Estima el tiempo probable de venta según tipo y zona.
+DELIMITER //
+
+CREATE FUNCTION FN_EstimarTiempoVenta(
+    tipo VARCHAR(50),
+    zona VARCHAR(50)
+)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE tiempo_est INT;
+
+    SET tiempo_est = CASE
+        WHEN tipo = 'Apartamento' AND zona = 'Centro' THEN 45
+        WHEN tipo = 'Casa' AND zona = 'Suburbio' THEN 60
+        WHEN tipo = 'Local' THEN 90
+        WHEN tipo = 'Terreno' THEN 120
+        ELSE 75
+    END;
+
+    RETURN tiempo_est;
+END//
+
+DELIMITER ;
+
+SELECT FN_EstimarTiempoVenta('Casa', 'Suburbio') AS dias_estimados;
+
+#5.	FN_CalcularCuotaHipotecaria: Calcula la cuota hipotecaria estimada para una propiedad.
+DELIMITER //
+
+CREATE FUNCTION FN_CalcularCuotaHipotecaria(
+    monto DECIMAL(12,2),
+    tasa_anual DECIMAL(5,2),
+    plazo_anios INT
+)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE tasa_mensual DECIMAL(8,6);
+    DECLARE n INT;
+    DECLARE cuota DECIMAL(10,2);
+
+    SET tasa_mensual = (tasa_anual / 100) / 12;
+    SET n = plazo_anios * 12;
+
+    SET cuota = (monto * tasa_mensual) / (1 - POW(1 + tasa_mensual, -n));
+
+    RETURN ROUND(cuota, 2);
+END//
+
+DELIMITER ;
+
+SELECT FN_CalcularCuotaHipotecaria(200000, 8.5, 20) AS cuota_mensual;
